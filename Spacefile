@@ -1,0 +1,24 @@
+# Spacefile Docs: https://go.deta.dev/docs/spacefile/v0
+v: 0
+micros:
+  - name: githubLineMemo
+    src: .
+    engine: python3.9
+    primary: true
+    presets:
+      env:
+        - name: LINEBOT_CHANNEL_ACCESS_TOKEN
+        - name: LINEBOT_CHANNEL_SECRET
+        - name: LINEBOT_USER_ID
+        - name: GITHUB_ACCESS_TOKEN
+        - name: GITHUB_USERNAME
+        - name: GITHUB_REPOSITORY
+        - name: REMINDER_MESSAGE
+    actions:
+      - id: "reminder"
+        name: "reminder"
+        description: "reminder"
+        trigger: "schedule"
+        default_interval: "0 21 * * *"
+    public_routes:
+    - "/*"

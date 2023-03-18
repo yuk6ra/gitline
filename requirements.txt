@@ -1,0 +1,4 @@
+line-bot-sdk
+python-dotenv
+fastapi
+PyGithub
