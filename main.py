@@ -3,13 +3,14 @@ from linebot import LineBotApi, WebhookHandler # pip install line-bot-sdk
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import os
+import datetime
 import dotenv
-from GithubMemo import StockMemo
+from GithubMemo import MemoRegistry
 
 dotenv.load_dotenv()
 
 app = FastAPI()
-memo = StockMemo()
+memo = MemoRegistry()
 
 line_bot_api = LineBotApi(os.environ["LINEBOT_CHANNEL_ACCESS_TOKEN"])
 line = WebhookHandler(os.environ['LINEBOT_CHANNEL_SECRET'])
@@ -49,13 +50,27 @@ async def actions(request: Request):
     data = await request.json()
     event = data['event']
     if event['id'] == 'reminder':
-        sendMessage()
+        sendReminder()
+        return {"message": "cleanup started successfully"}
+    if event['id'] == 'review':
+        sendReview()
         return {"message": "cleanup started successfully"}
     else:
         return {"message": "no action found for this event"}
     
-def sendMessage():
+def sendReminder():
     line_bot_api.push_message(
         LINE_USER_ID,
         TextSendMessage(text=f"{REMINDER_MESSAGE}")
     )
+
+def sendReview():
+    now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=+9), 'JST'))
+    content, year, month, day = memo.read_random_file()
+
+    memo_date = datetime.datetime(year=year, month=month, day=day, tzinfo=datetime.timezone(datetime.timedelta(hours=+9), 'JST'))
+    
+    days_diff = (now.date() - memo_date.date()).days
+
+    message = f"{year}.{month}.{day} ({days_diff} days ago)\n\n{content}"
+    line_bot_api.push_message(LINE_USER_ID, TextSendMessage(text=message))

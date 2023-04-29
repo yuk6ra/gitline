@@ -20,5 +20,10 @@ micros:
         description: "reminder"
         trigger: "schedule"
         default_interval: "0 21 * * *"
+      - id: "review"
+        name: "review"
+        description: "review"
+        trigger: "schedule"
+        default_interval: "0 22 * * *"   
     public_routes:
     - "/*"
