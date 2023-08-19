@@ -20,7 +20,7 @@ class MemoRegistry:
         if now.hour < 4:
             now = now - datetime.timedelta(days=1)
         message = f"{now.year}.{now.month}.{now.day}"
-        file_path = f"{now.year}/{now.month:02d}{now.day:02d}.md"
+        file_path = f"{now.year}/{now.month:02d}/{now.month:02d}{now.day:02d}.md"
         try:
             file_contents = self.repo.get_contents(file_path)
             existing_content = file_contents.decoded_content.decode()
@@ -50,7 +50,7 @@ class MemoRegistry:
         random_date = start_date + datetime.timedelta(days=random_days)
 
         year, month, day = random_date.year, random_date.month, random_date.day
-        file_path = f"{year}/{month:02d}{day:02d}.md"
+        file_path = f"{year}/{month:02d}/{month:02d}{day:02d}.md"
 
         try:
             file_contents = self.repo.get_contents(file_path)
