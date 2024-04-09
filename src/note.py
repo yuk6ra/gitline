@@ -9,12 +9,12 @@ GITHUB_ACCESS_TOKEN = os.environ["GITHUB_ACCESS_TOKEN"]
 GITHUB_USERNAME = os.environ["GITHUB_USERNAME"]
 GITHUB_REPOSITORY = os.environ["GITHUB_REPOSITORY"]
 
-class MemoRegistry:
+class NoteRegistry:
     def __init__(self):
         self.g = Github(GITHUB_ACCESS_TOKEN)
         self.repo = self.g.get_repo(f'{GITHUB_USERNAME}/{GITHUB_REPOSITORY}')
 
-    def write_memo(self, content):
+    def write(self, content):
         now = datetime.datetime.now(
             datetime.timezone(datetime.timedelta(hours=+9), 'JST'))
         if now.hour < 4:
@@ -55,8 +55,17 @@ class MemoRegistry:
         try:
             file_contents = self.repo.get_contents(file_path)
             content = file_contents.decoded_content.decode()
-            print(f"Contents of file {year}/{month:02d}{day:02d}.md:\n{content}")
             return content, year, month, day
         except Exception as e:
+            return "No content found.", year, month, day
+
+    def read_file(self, year, month, day) -> str:
+        file_path = f"{year}/{month:02d}/{month:02d}{day:02d}.md"
+
+        try:
+            file_contents = self.repo.get_contents(file_path)
+            content = file_contents.decoded_content.decode()
+            return content
+        except Exception as e:
             print(f"Error reading file: {e}")
-            print(f"No file found for {year}/{month:02d}{day:02d}.md")
+            print(f"No file found for {year}/{month:02d}{day:02d}.md")       
