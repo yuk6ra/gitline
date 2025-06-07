@@ -2,3 +2,4 @@ line_bot_sdk==3.9.0
 python-dotenv==1.0.1
 awslambdaric==2.0.7 # Required for Mangum
 PyGithub
+openai
