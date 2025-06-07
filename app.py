@@ -225,7 +225,7 @@ def handle_analysis_context(content):
             
             # フォローアップの質問
             follow_up_message = f"【AI分析】\n{analysis}\n\n"
-            follow_up_message += "この分析についてどう思いますか？感想や意見を自由に入力してください。\n（「終了」でセッション終了）"
+            follow_up_message += "この分析についてどう思いますか？感想や意見を自由に入力してください。\n特にない場合は「ない」と入力してください。\n（「終了」でセッション終了）"
             
             send_line_message(follow_up_message)
             current_session["current_analysis"] = analysis
@@ -237,21 +237,27 @@ def handle_analysis_context(content):
 def handle_analysis_followup(content):
     """AI分析に対するユーザーの意見を処理"""
     if current_session.get("current_analysis"):
-        # ユーザーの回答をGitHubに保存（3階層目として）
-        note.write_qa_pair("この分析についてどう思いますか？", content)
-        
-        # セッションに記録
-        deep_dive.add_qa_pair(current_session["session_id"], "この分析についてどう思いますか？", content)
+        # 「ない」以外の場合のみGitHubに保存
+        if content.strip().lower() not in ["ない", "なし", "特にない", "特になし"]:
+            # ユーザーの回答をGitHubに保存（3階層目として）
+            note.write_qa_pair("この分析についてどう思いますか？", content)
+            
+            # セッションに記録
+            deep_dive.add_qa_pair(current_session["session_id"], "この分析についてどう思いますか？", content)
+            
+            message = "回答を保存しました。"
+        else:
+            message = "承知しました。"
         
         # 現在の分析情報をクリア
         current_session["current_analysis"] = None
         
         # 続行するかを確認
         if not deep_dive.is_session_complete(current_session["session_id"]):
-            send_line_message("回答を保存しました。\n\n続けて深堀りしますか？「はい」で継続、「いいえ」で終了")
+            send_line_message(f"{message}\n\n続けて深堀りしますか？「はい」で継続、「いいえ」で終了")
             current_session["waiting_for"] = "continue"
         else:
-            send_line_message("深堀りセッション完了！（最大5回に達しました）")
+            send_line_message("深堀りセッション完了！（最大10回に達しました）")
             reset_session()
 
 def reset_session():
