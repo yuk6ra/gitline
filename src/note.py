@@ -186,7 +186,7 @@ Remember: challenge assumptions, connect dots, expand horizons.
             
             # コンテキストを構築
             if qa_history and len(qa_history) > 0:
-                context = f"Original memo: {memo}\n\nConversation flow (hierarchical thinking process):\n"
+                context = f"Original memo: {memo}\n\n ■ Conversation flow (hierarchical thinking process):\n"
                 
                 # 階層的な文脈を構築
                 for i, qa in enumerate(qa_history, 1):
@@ -208,9 +208,11 @@ Remember: challenge assumptions, connect dots, expand horizons.
                     context = f"Memo: {memo}"
             
             print(f"[Debug] Generated context: {context}")
+            print(f"[Debug] System prompt: {self.system_prompt}")
+            print(f"[Debug] User prompt: {context}")
             
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": context}
