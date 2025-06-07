@@ -35,10 +35,20 @@ def check_session_timeout():
     if current_session["last_activity"] and current_session["session_id"]:
         elapsed = datetime.datetime.now() - current_session["last_activity"]
         if elapsed.total_seconds() > current_session["timeout_minutes"] * 60:
-            send_line_message("セッションがタイムアウトしました。新しいメモを送信してください。")
+            send_line_message("セッションがタイムアウトしました（5分経過）。新しいメモを送信してください。")
             reset_session()
             return True
     return False
+
+def timeout_check_handler(event, context):
+    """定期実行用のタイムアウトチェック関数（CloudWatch Events用）"""
+    try:
+        if check_session_timeout():
+            print("Session timed out and notification sent")
+        return "Success"
+    except Exception as e:
+        print(f"Error in timeout check: {e}")
+        return "Failed"
 
 def update_session_activity():
     """セッションの最終活動時刻を更新"""
@@ -56,6 +66,15 @@ def save_note(event, context):
             # 活動時刻を更新
             update_session_activity()
             
+            # 「終了」コマンドの処理（どの状態でも優先）
+            if content.strip() in ["終了", "エンド", "exit", "quit", "終わり", "やめる"]:
+                if current_session["session_id"]:
+                    send_line_message("深堀りセッションを終了しました。")
+                    reset_session()
+                else:
+                    send_line_message("現在アクティブなセッションはありません。")
+                return "Session ended"
+            
             # 現在の状態に応じて処理を分岐
             if current_session["waiting_for"] == "choice":
                 handle_question_choice(content)
@@ -63,6 +82,10 @@ def save_note(event, context):
                 handle_answer(content)
             elif current_session["waiting_for"] == "continue":
                 handle_continue_choice(content)
+            elif current_session["waiting_for"] == "analysis_context":
+                handle_analysis_context(content)
+            elif current_session["waiting_for"] == "analysis_followup":
+                handle_analysis_followup(content)
             elif content == "はい" and current_session["session_id"]:
                 start_deep_dive()
             else:
@@ -76,7 +99,7 @@ def save_note(event, context):
                     return "Failed to save memo"
                 
                 # 深堀するかを聞く
-                send_line_message("深堀りしますか？「はい」と答えるとAIが質問を生成します。")
+                send_line_message("深堀りしますか？「はい」と答えるとAIが質問を生成します。\n「はい」以外の回答はそのまま次のメモとして保存します。")
                 
                 # セッション開始
                 session_id = deep_dive.start_session("user", content)
@@ -102,7 +125,8 @@ def start_deep_dive():
             question_text = "以下から質問を選んでください：\n\n"
             for i, q in enumerate(questions):
                 question_text += f"{i+1}. [{q['type']}] {q['q']}\n"
-            question_text += "\n番号（1-5）で回答してください。\n「再考」と入力すると別の質問を生成します。"
+            question_text += f"\n{len(questions)+1}. [Analysis] AIによる客観的な分析・意見を聞く\n"
+            question_text += f"\n番号（1-{len(questions)+1}）で回答してください。\n「再考」と入力すると別の質問を生成します。\n「終了」でセッションを終了できます。"
             
             send_line_message(question_text)
             current_session["waiting_for"] = "choice"
@@ -118,14 +142,19 @@ def handle_question_choice(content):
     
     try:
         choice = int(content.strip())
+        total_options = len(current_session["questions"]) + 1  # +1 for AI analysis option
+        
         if 1 <= choice <= len(current_session["questions"]):
             selected_question = current_session["questions"][choice - 1]
             current_session["current_question"] = selected_question
             
-            send_line_message(f"質問: {selected_question['q']}\n\n回答を入力してください。")
+            send_line_message(f"質問: {selected_question['q']}\n\n回答を入力してください。\n（「終了」でセッション終了）")
             current_session["waiting_for"] = "answer"
+        elif choice == total_options:  # AI分析オプション
+            send_line_message("AIによる客観的な分析を生成しています...\n\n追加で伝えたい仮説や考えがあれば入力してください。\n何もなければ「なし」と入力してください。\n（「終了」でセッション終了）")
+            current_session["waiting_for"] = "analysis_context"
         else:
-            send_line_message("1-5の番号で選択してください。")
+            send_line_message(f"1-{total_options}の番号で選択してください。")
     except ValueError:
         send_line_message("数字で回答するか、「再考」と入力してください。")
 
@@ -169,12 +198,61 @@ def regenerate_questions():
             question_text = "【再生成された質問】以下から質問を選んでください：\n\n"
             for i, q in enumerate(questions):
                 question_text += f"{i+1}. [{q['type']}] {q['q']}\n"
-            question_text += "\n番号（1-5）で回答してください。\n「再考」でさらに別の質問を生成します。"
+            question_text += f"\n{len(questions)+1}. [Analysis] AIによる客観的な分析・意見を聞く\n"
+            question_text += f"\n番号（1-{len(questions)+1}）で回答してください。\n「再考」でさらに別の質問を生成します。\n「終了」でセッションを終了できます。"
             
             send_line_message(question_text)
             current_session["waiting_for"] = "choice"
         else:
             send_line_message("質問の再生成に失敗しました。")
+
+def handle_analysis_context(content):
+    """AI分析のためのユーザーコンテキストを処理"""
+    session = deep_dive.get_session(current_session["session_id"])
+    if session:
+        qa_history = session.get("qa_pairs", [])
+        user_context = None if content.strip().lower() in ["なし", ""] else content.strip()
+        
+        # AI分析を生成
+        analysis = ai.generate_analysis(session["original_memo"], qa_history, user_context)
+        
+        if analysis:
+            # 分析をGitHubに保存（2階層目として）
+            note.write_qa_pair("AIによる客観的分析", analysis)
+            
+            # セッションに記録
+            deep_dive.add_qa_pair(current_session["session_id"], "AIによる客観的分析", analysis)
+            
+            # フォローアップの質問
+            follow_up_message = f"【AI分析】\n{analysis}\n\n"
+            follow_up_message += "この分析についてどう思いますか？感想や意見を自由に入力してください。\n（「終了」でセッション終了）"
+            
+            send_line_message(follow_up_message)
+            current_session["current_analysis"] = analysis
+            current_session["waiting_for"] = "analysis_followup"
+        else:
+            send_line_message("分析の生成に失敗しました。")
+            current_session["waiting_for"] = "choice"
+
+def handle_analysis_followup(content):
+    """AI分析に対するユーザーの意見を処理"""
+    if current_session.get("current_analysis"):
+        # ユーザーの回答をGitHubに保存（3階層目として）
+        note.write_qa_pair("この分析についてどう思いますか？", content)
+        
+        # セッションに記録
+        deep_dive.add_qa_pair(current_session["session_id"], "この分析についてどう思いますか？", content)
+        
+        # 現在の分析情報をクリア
+        current_session["current_analysis"] = None
+        
+        # 続行するかを確認
+        if not deep_dive.is_session_complete(current_session["session_id"]):
+            send_line_message("回答を保存しました。\n\n続けて深堀りしますか？「はい」で継続、「いいえ」で終了")
+            current_session["waiting_for"] = "continue"
+        else:
+            send_line_message("深堀りセッション完了！（最大5回に達しました）")
+            reset_session()
 
 def reset_session():
     if current_session["session_id"]:
@@ -184,7 +262,8 @@ def reset_session():
         "questions": [],
         "current_question": None,
         "waiting_for": None,
-        "last_activity": None
+        "last_activity": None,
+        "current_analysis": None
     })
 
 def create_mock_event(text):

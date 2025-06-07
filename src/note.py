@@ -64,7 +64,13 @@ class NoteRegistry:
         question_indent = "  "    # 常に2スペース
         answer_indent = "    "    # 常に4スペース
         
-        qa_content = f"{question_indent}- {question}\n{answer_indent}- {answer.strip().replace('\n', '\n' + answer_indent + '  ')}"
+        # 分析の場合は既に構造化されているので、余分な「-」を追加しない
+        if question == "AIによる客観的分析":
+            # 分析結果の空行を除去してから処理
+            cleaned_answer = '\n'.join(line for line in answer.strip().split('\n') if line.strip())
+            qa_content = f"{question_indent}- {question}\n{answer_indent}{cleaned_answer.replace('\n', '\n' + answer_indent)}"
+        else:
+            qa_content = f"{question_indent}- {question}\n{answer_indent}- {answer.strip().replace('\n', '\n' + answer_indent + '  ')}"
         
         try:
             file_contents = self.repo.get_contents(file_path)
@@ -153,6 +159,8 @@ When previous Q&A is provided:
 • Alternative– Surface other options or opposing views
 • Evidence   – Seek supporting facts, data, or precedents
 • Action     – Identify next steps, experiments, or plans
+• Meta – Examine the framing of the question itself, test its relevance, and recalibrate the inquiry’s direction
+• Values – Surface ethical principles, stakeholder values, and normative implications to ensure alignment and fairness
 
 Your questions should:
 1. Reference and build on previous answers
@@ -175,6 +183,109 @@ Your questions should:
 
 Remember: challenge assumptions, connect dots, expand horizons.
 """
+
+    def generate_analysis(self, memo, qa_history=None, user_context=None):
+        analysis_prompt = """
+■ CONTEXT
+You are an objective analytical assistant who distills the user’s memo and Q&A history into clear, actionable insight.
+
+■ ROLE
+Read the entire conversation (original memo + full Q&A thread + any user context) and produce a concise, neutral analysis that helps the user see patterns, blind spots, and next-step implications.
+
+■ INPUT
+• Original memo / thought  
+• Complete Q&A conversation history (if any)  
+• Additional user context (if provided)
+
+■ ANALYSIS APPROACH
+1. Pattern Recognition – Detect themes, contradictions, and recurring ideas.  
+2. Depth Assessment – Gauge how thoroughly each theme has been explored.  
+3. Gap Analysis – Highlight untested assumptions or missing angles.  
+4. Perspective Synthesis – Connect disparate points across the dialogue.  
+5. Objective Insight – Offer neutral observations on thinking habits.
+
+■ ANALYSIS THEMES  ─ always cover all five
+A. ギャップと未検証仮説 (Gaps & Untested Hypotheses)
+   • Purpose: Reveal silent assumptions and untouched areas.
+   • Question Tips: Ask “What evidence would falsify this?” or “Which assumption remains untested?”
+
+B. 論拠の質とエビデンス強度 (Evidence Quality)
+   • Purpose: Evaluate credibility of data and reasoning.
+   • Question Tips: Probe source reliability, sample size, counter-evidence.
+
+C. ステークホルダー多面視点 (Stakeholder Perspectives)
+   • Purpose: Surface viewpoints of all relevant actors.
+   • Question Tips: “How would X perceive this?” or “Whose incentives differ?”
+
+D. 認知バイアスと感情トーン (Cognitive Bias & Emotional Tone)
+   • Purpose: Detect bias or emotive language that skews judgement.
+   • Question Tips: Invite role-reversal, devil’s-advocate framing.
+
+E. 実行可能性とインパクト (Feasibility vs. Impact)
+   • Purpose: Weigh practicality against expected value.
+   • Question Tips: Compare effort-to-benefit ratios, outline minimal viable tests.
+
+■ OUTPUT FORMAT
+Return Japanese only, full-width characters total, structured exactly like:
+
+- ギャップと未検証仮説  
+  - …
+- 論拠の質とエビデンス強度  
+  - …
+- ステークホルダー多面視点  
+  - …
+- 認知バイアスと感情トーン  
+  - …
+- 実行可能性とインパクト  
+  - …
+
+Guidelines:
+• Use “- …” for each bullet (no extra sections, no numbering changes).  
+• Keep each bullet crisp and insight-rich; avoid repetition.  
+• Do not exceed 1500 characters overall; aim for 300 characters per theme.  
+• Provide no extra commentary before or after the structured list.
+
+Remember: stay neutral, connect dots, and surface the most valuable angles for sharper future questioning.
+"""
+        
+        try:
+            print(f"[Debug] Generating analysis for memo: '{memo}'")
+            if qa_history:
+                print(f"[Debug] Including Q&A history for analysis: {qa_history}")
+            if user_context:
+                print(f"[Debug] Additional user context: {user_context}")
+            
+            # コンテキストを構築
+            if qa_history and len(qa_history) > 0:
+                context = f"Original memo: {memo}\n\n■ Complete conversation history:\n"
+                for i, qa in enumerate(qa_history, 1):
+                    context += f"Q{i}: {qa['question']}\nA{i}: {qa['answer']}\n\n"
+            else:
+                context = f"Memo: {memo}"
+            
+            if user_context:
+                context += f"\n■ Additional context from user:\n{user_context}"
+            
+            print(f"[Debug] System prompt for analysis: {analysis_prompt}")
+            print(f"[Debug] User prompt for analysis: {context}")
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": analysis_prompt},
+                    {"role": "user", "content": context}
+                ],
+            )
+            
+            analysis = response.choices[0].message.content
+            print(f"[Debug] AI Analysis: {analysis}")
+            return analysis
+            
+        except Exception as e:
+            print(f"Error generating analysis: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def generate_questions(self, memo, qa_history=None, regenerate=False):
         try:
@@ -217,7 +328,6 @@ Remember: challenge assumptions, connect dots, expand horizons.
                     {"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": context}
                 ],
-                response_format={"type": "json_object"},
             )
             
             questions_json = response.choices[0].message.content
@@ -259,7 +369,7 @@ Remember: challenge assumptions, connect dots, expand horizons.
 class DeepDiveSession:
     def __init__(self):
         self.sessions = {}
-        self.max_rounds = 5
+        self.max_rounds = 10
     
     def start_session(self, user_id, memo):
         session_id = f"{user_id}_{datetime.datetime.now().timestamp()}"
