@@ -7,6 +7,8 @@ $ docker tag accounting:latest <>.dkr.ecr.ap-northeast-1.amazonaws.com/accountin
 $ docker push <>.dkr.ecr.ap-northeast-1.amazonaws.com/accounting:latest
 ```
 
+# AWS IAM User for GitHub Actions Lambda Deploy
+```shell
 aws iam create-user --user-name github-actions-lambda-deploy
 
 aws iam create-policy \
@@ -18,3 +20,7 @@ aws iam attach-user-policy \
     --policy-arn arn:aws:iam::<Account ID>:policy/GitHubActionsLambdaDeployPolicy
 
 aws iam create-access-key --user-name github-actions-lambda-deploy
+```
+
+# First Time Setup
+```shell
