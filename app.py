@@ -135,7 +135,7 @@ def save_note(event, context):
                     note.write(content=content)
                     print(f"[Debug] Memo saved successfully")
                 except Exception as e:
-                    print(f"[Error] Failed to save memo: {e}")さ
+                    print(f"[Error] Failed to save memo: {e}")
                     return {
                         'statusCode': 200,
                         'body': 'Failed to save memo'
