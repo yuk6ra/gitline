@@ -29,7 +29,7 @@ class NoteRegistry:
         
         try:
             print(f"[Debug] Attempting to get existing file...")
-            file_contents = self.repo.get_contents(file_path)
+            file_contents = self.repo.get_contents(file_path, ref="main")
             existing_content = file_contents.decoded_content.decode()
             new_content = existing_content + "\n" + "- " + content.strip().replace("\n", "\n  ")
             commit = f"Update {message}"
@@ -73,7 +73,7 @@ class NoteRegistry:
             qa_content = f"{question_indent}- {question}\n{answer_indent}- {answer.strip().replace('\n', '\n' + answer_indent + '  ')}"
         
         try:
-            file_contents = self.repo.get_contents(file_path)
+            file_contents = self.repo.get_contents(file_path, ref="main")
             existing_content = file_contents.decoded_content.decode()
             new_content = existing_content + "\n" + qa_content
             commit = f"Update {message} - Deep dive Q&A"
