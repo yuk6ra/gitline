@@ -1,16 +1,16 @@
-# GitHub LINE メモ
+# Oracle AI
 
-LINEで送信したメモをGitHubリポジトリに自動保存し、AIによる深堀り質問機能を提供するLINE Botです。
+A LINE Bot that automatically saves memos sent via LINE to a GitHub repository and provides AI-powered deep-dive questioning functionality.
 
-## 機能
+## Features
 
-- **メモ保存**: LINEで送信したテキストをGitHubリポジトリに自動保存
-- **AI深堀り**: OpenAI GPTを使用してメモに関する質問を生成
-- **対話セッション**: 質問への回答を通じてメモを深く掘り下げ
-- **客観的分析**: AIによるメモの客観的な分析・意見提供
-- **セッション管理**: タイムアウト機能付きの対話セッション
+- **Memo Saving**: Automatically saves text sent via LINE to a GitHub repository
+- **AI Deep-dive**: Generates questions about memos using OpenAI GPT
+- **Interactive Sessions**: Deep exploration of memos through question-and-answer interactions
+- **Objective Analysis**: AI-powered objective analysis and insights on memos
+- **Session Management**: Interactive sessions with timeout functionality
 
-## アーキテクチャ
+## Architecture
 
 ```
 LINE Webhook → AWS Lambda → GitHub API
@@ -18,61 +18,61 @@ LINE Webhook → AWS Lambda → GitHub API
                 OpenAI API
 ```
 
-## セットアップ
+## Setup
 
-### 1. 必要な環境変数
+### 1. Required Environment Variables
 
-以下の環境変数を設定してください：
+Set the following environment variables:
 
 ```bash
-# LINE Bot設定
+# LINE Bot Configuration
 LINEBOT_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
 LINEBOT_USER_ID=your_line_user_id
 
-# GitHub設定
+# GitHub Configuration
 GITHUB_ACCESS_TOKEN=your_github_personal_access_token
 GITHUB_USERNAME=your_github_username
 GITHUB_REPOSITORY=your_repository_name
 
-# OpenAI設定
+# OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-### 2. AWS IAMユーザーの作成（GitHub Actions用）
+### 2. Create AWS IAM User (for GitHub Actions)
 
 ```bash
-# IAMユーザーを作成
+# Create IAM user
 aws iam create-user --user-name github-actions-lambda-deploy
 
-# ポリシーを作成
+# Create policy
 aws iam create-policy \
   --policy-name GitHubActionsLambdaDeployPolicy \
   --policy-document file://aws/iam-policy.json
 
-# ポリシーをユーザーにアタッチ
+# Attach policy to user
 aws iam attach-user-policy \
   --user-name github-actions-lambda-deploy \
   --policy-arn arn:aws:iam::<Account-ID>:policy/GitHubActionsLambdaDeployPolicy
 
-# アクセスキーを作成
+# Create access key
 aws iam create-access-key --user-name github-actions-lambda-deploy
 ```
 
-### 3. AWS Lambdaデプロイ
+### 3. AWS Lambda Deployment
 
-初回セットアップ時は以下のスクリプトを実行：
+Run the following scripts for initial setup:
 
 ```bash
-# Lambda関数を作成
+# Create Lambda function
 ./create-lambda.sh
 
-# API Gatewayを作成・設定
+# Create and configure API Gateway
 ./create-api-gateway.sh
 ```
 
-### 4. GitHub Actionsの設定
+### 4. GitHub Actions Configuration
 
-以下のシークレットをGitHubリポジトリに設定：
+Set the following secrets in your GitHub repository:
 
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
@@ -83,80 +83,80 @@ aws iam create-access-key --user-name github-actions-lambda-deploy
 - `GITHUB_REPOSITORY`
 - `OPENAI_API_KEY`
 
-## 使用方法
+## Usage
 
-### 基本的なメモ保存
+### Basic Memo Saving
 
-1. LINE Botにメッセージを送信
-2. 「深堀りしますか？」と聞かれる
-3. 「はい」以外を入力すると通常のメモとして保存
+1. Send a message to the LINE Bot
+2. When asked "Do you want to deep-dive?"
+3. Input anything other than "yes" to save as a regular memo
 
-### AI深堀りセッション
+### AI Deep-dive Session
 
-1. メモ送信後「はい」を入力
-2. AIが生成した質問から選択（1-5の番号で回答）
-3. 質問に回答
-4. 「続けて深堀りしますか？」で継続可能
-5. 最大10回まで質問・回答が可能
+1. Input "yes" after sending a memo
+2. Select from AI-generated questions (respond with numbers 1-5)
+3. Answer the questions
+4. Can continue with "Do you want to continue deep-diving?"
+5. Up to 10 question-and-answer rounds possible
 
-### 特別なコマンド
+### Special Commands
 
-- **再考**: 別の角度から質問を再生成
-- **終了**: セッションを強制終了
-- **AI分析**: AIによる客観的な分析を取得
+- **Reconsider**: Regenerate questions from different angles
+- **End**: Force end the session
+- **AI Analysis**: Get objective analysis from AI
 
-## 開発
+## Development
 
-### ローカルテスト
+### Local Testing
 
 ```bash
 python app.py
 ```
 
-環境変数が設定されていない場合はローカルテストモードで動作します。
+Runs in local test mode when environment variables are not set.
 
-### ファイル構成
+### File Structure
 
 ```
-├── app.py              # メイン処理（Lambda関数）
+├── app.py              # Main processing (Lambda function)
 ├── src/
-│   └── note.py         # GitHub API・AI処理
+│   └── note.py         # GitHub API & AI processing
 ├── aws/
-│   ├── iam-policy.json # IAMポリシー
+│   ├── iam-policy.json # IAM policy
 │   └── lambda-trust-policy.json
-├── requirements.txt    # Python依存関係
-├── Dockerfile         # コンテナ設定
-└── create-*.sh        # デプロイスクリプト
+├── requirements.txt    # Python dependencies
+├── Dockerfile         # Container configuration
+└── create-*.sh        # Deployment scripts
 ```
 
-## デプロイ
+## Deployment
 
-プッシュすると自動的にGitHub ActionsによってAWS Lambdaにデプロイされます。
+Automatically deployed to AWS Lambda via GitHub Actions when pushed.
 
-### 手動デプロイ（ECR使用）
+### Manual Deployment (using ECR)
 
 ```bash
-# ECRリポジトリ作成
+# Create ECR repository
 aws ecr create-repository --repository-name line-git-note-save-note
 
-# Dockerイメージビルド・プッシュ
+# Build and push Docker image
 docker build -t line-git-note-save-note .
 docker tag line-git-note-save-note:latest <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/line-git-note-save-note:latest
 docker push <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/line-git-note-save-note:latest
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
 ### 502 Bad Gateway
 
-Lambda関数が適切なHTTPレスポンス（statusCode: 200）を返していることを確認してください。
+Ensure the Lambda function returns proper HTTP response (statusCode: 200).
 
-### メモが保存されない
+### Memo Not Saving
 
-- GitHub Personal Access Tokenの権限を確認
-- リポジトリ名とユーザー名が正しいことを確認
+- Check GitHub Personal Access Token permissions
+- Verify repository name and username are correct
 
-### AI機能が動作しない
+### AI Features Not Working
 
-- OpenAI API Keyが有効であることを確認
-- API使用量制限に達していないか確認
+- Verify OpenAI API Key is valid
+- Check if API usage limits have been reached
