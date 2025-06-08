@@ -56,12 +56,22 @@ def update_session_activity():
 
 def save_note(event, context):
     try:
+        # Handle empty events array (health check from LINE Platform)
+        if not event.get('events'):
+            return {
+                'statusCode': 200,
+                'body': 'OK'
+            }
+        
         if event['events'][0]['type'] == 'message' and event['events'][0]['message']['type'] == 'text':
             content = event['events'][0]['message']['text']
             
             # セッションタイムアウトをチェック
             if check_session_timeout():
-                return "Session timeout"
+                return {
+                    'statusCode': 200,
+                    'body': 'Session timeout'
+                }
             
             # 活動時刻を更新
             update_session_activity()
@@ -73,7 +83,10 @@ def save_note(event, context):
                     reset_session()
                 else:
                     send_line_message("現在アクティブなセッションはありません。")
-                return "Session ended"
+                return {
+                    'statusCode': 200,
+                    'body': 'Session ended'
+                }
             
             # 現在の状態に応じて処理を分岐
             if current_session["waiting_for"] == "choice":
@@ -96,7 +109,10 @@ def save_note(event, context):
                     print(f"[Debug] Memo saved successfully")
                 except Exception as e:
                     print(f"[Error] Failed to save memo: {e}")
-                    return "Failed to save memo"
+                    return {
+                        'statusCode': 200,
+                        'body': 'Failed to save memo'
+                    }
                 
                 # 深堀するかを聞く
                 send_line_message("深堀りしますか？「はい」と答えるとAIが質問を生成します。\n「はい」以外の回答はそのまま次のメモとして保存します。")
@@ -107,10 +123,16 @@ def save_note(event, context):
                 update_session_activity()
                 print(f"[Debug] Session started: {session_id}")
                 
-        return "Success"
+        return {
+            'statusCode': 200,
+            'body': 'Success'
+        }
     except Exception as e:
         print(e)
-        return "Failed"
+        return {
+            'statusCode': 200,
+            'body': 'Failed'
+        }
 
 def start_deep_dive():
     session = deep_dive.get_session(current_session["session_id"])
