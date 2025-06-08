@@ -56,8 +56,35 @@ def update_session_activity():
 
 def save_note(event, context):
     try:
+        print(f"[Debug] Raw event received: {json.dumps(event, ensure_ascii=False)}")
+        print(f"[Debug] Context: {context}")
+        
+        # 環境変数チェック
+        required_vars = ["GITHUB_ACCESS_TOKEN", "GITHUB_USERNAME", "GITHUB_REPOSITORY", "OPENAI_API_KEY"]
+        missing_vars = [var for var in required_vars if not os.environ.get(var)]
+        if missing_vars:
+            print(f"[Error] Missing environment variables: {missing_vars}")
+            return {
+                'statusCode': 500,
+                'body': f'Missing environment variables: {missing_vars}'
+            }
+        
+        # API Gateway経由の場合、bodyをパース
+        if 'body' in event:
+            try:
+                body = json.loads(event['body'])
+                print(f"[Debug] Parsed body: {json.dumps(body, ensure_ascii=False)}")
+                event = body
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"[Debug] Failed to parse body: {e}")
+                return {
+                    'statusCode': 400,
+                    'body': 'Invalid JSON in request body'
+                }
+        
         # Handle empty events array (health check from LINE Platform)
         if not event.get('events'):
+            print(f"[Debug] Empty events array - health check")
             return {
                 'statusCode': 200,
                 'body': 'OK'
@@ -108,7 +135,7 @@ def save_note(event, context):
                     note.write(content=content)
                     print(f"[Debug] Memo saved successfully")
                 except Exception as e:
-                    print(f"[Error] Failed to save memo: {e}")
+                    print(f"[Error] Failed to save memo: {e}")さ
                     return {
                         'statusCode': 200,
                         'body': 'Failed to save memo'
