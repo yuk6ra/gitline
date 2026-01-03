@@ -1,6 +1,6 @@
-# GitHub LINE Memo
+# GitHub × LINE Bot = GitLine
 
-A LINE Bot that automatically saves memos and images sent via LINE to a GitHub repository.
+A LINE Bot that automatically saves notes and images sent via LINE to a GitHub repository.
 
 ## Features
 
@@ -35,19 +35,22 @@ DAILY_BASE_DIR=daily   # Directory for daily journals
 
 ### 2. Create AWS IAM User (for GitHub Actions)
 
+Create an IAM user with the following AWS managed policies:
+- `AmazonEC2ContainerRegistryPowerUser`
+- `AWSLambda_FullAccess` (or a custom policy with `lambda:UpdateFunctionCode`)
+
 ```bash
 # Create IAM user
 aws iam create-user --user-name github-actions-lambda-deploy
 
-# Create policy
-aws iam create-policy \
-  --policy-name GitHubActionsLambdaDeployPolicy \
-  --policy-document file://aws/iam-policy.json
-
-# Attach policy to user
+# Attach managed policies
 aws iam attach-user-policy \
   --user-name github-actions-lambda-deploy \
-  --policy-arn arn:aws:iam::<Account-ID>:policy/GitHubActionsLambdaDeployPolicy
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
+aws iam attach-user-policy \
+  --user-name github-actions-lambda-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
 
 # Create access key
 aws iam create-access-key --user-name github-actions-lambda-deploy
@@ -65,7 +68,38 @@ Run the following scripts for initial setup:
 ./create-api-gateway.sh
 ```
 
-### 4. GitHub Actions Configuration
+### 4. Lambda Environment Variables
+
+Set environment variables in AWS Lambda console or via CLI:
+
+```bash
+aws lambda update-function-configuration \
+  --function-name gitline \
+  --environment "Variables={
+    GITHUB_ACCESS_TOKEN=your_github_personal_access_token,
+    GITHUB_USERNAME=your_github_username,
+    GITHUB_REPOSITORY=your_repository_name,
+    LINEBOT_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token,
+    LINEBOT_USER_ID=your_line_user_id,
+    NOTE_BASE_DIR=seeds,
+    DAILY_BASE_DIR=daily
+  }"
+```
+
+Or create `.env.production` file and use it for reference:
+
+```bash
+# .env.production (do NOT commit this file)
+GITHUB_ACCESS_TOKEN=ghp_xxxxxxxxxxxx
+GITHUB_USERNAME=your_username
+GITHUB_REPOSITORY=your_repo
+LINEBOT_CHANNEL_ACCESS_TOKEN=xxxxxxxx
+LINEBOT_USER_ID=Uxxxxxxxx
+NOTE_BASE_DIR=seeds
+DAILY_BASE_DIR=daily
+```
+
+### 5. GitHub Actions Configuration
 
 Set the following secrets in your GitHub repository:
 
@@ -77,7 +111,7 @@ Set the following secrets in your GitHub repository:
 
 ## Usage
 
-### Text Memo
+### Text Note
 
 Send any text message to the LINE Bot. It will be saved to:
 ```
@@ -109,20 +143,53 @@ Send an image to the LINE Bot. It will be:
 
 ## File Structure
 
+### Project Structure
+
 ```
 ├── app.py              # Lambda handler (LINE Bot)
 ├── src/
 │   ├── note.py         # NoteRegistry class
 │   └── daily.py        # DailyRegistry class
-├── aws/
-│   ├── iam-policy.json
-│   └── lambda-trust-policy.json
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml  # Auto-deploy on push
 ├── requirements.txt
 ├── Dockerfile
 └── create-*.sh         # Deployment scripts
+```
+
+### GitHub Repository Structure (Output)
+
+```
+your-repository/
+├── seeds/                          # NOTE_BASE_DIR (notes & images)
+│   └── {year}/
+│       └── {month}/
+│           ├── {month}{day}.md     # Daily note (e.g., 0103.md)
+│           └── assets/
+│               └── {year}-{month}-{day}-{HHMMSS}.jpg # Uploaded images (e.g., 2026-01-03-142757.jpg)
+└── daily/                          # DAILY_BASE_DIR (journals)
+    └── {year}/
+        └── {month}/
+            └── {month}{day}.md     # Daily journal (e.g., 0103.md)
+```
+
+Example:
+```
+your-repository/
+├── seeds/
+│   └── 2026/
+│       └── 01/
+│           ├── 0103.md
+│           ├── 0104.md
+│           └── assets/
+│               ├── 2026-01-03-142708.jpg
+│               └── 2026-01-04-091523.jpg
+└── daily/
+    └── 2026/
+        └── 01/
+            ├── 0103.md
+            └── 0104.md
 ```
 
 ## Deployment

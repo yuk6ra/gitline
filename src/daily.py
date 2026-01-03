@@ -41,12 +41,12 @@ class DailyRegistry:
 
         try:
             file_contents = self.repo.get_contents(file_path, ref="main")
-            commit = f"Update {message}"
+            commit = f"{DAILY_BASE_DIR}: Update {message}"
             self.repo.update_file(
                 file_path, commit, content.strip(), file_contents.sha, branch="main")
             print(f"Diary {message} updated.")
         except Exception:
-            commit = f"Add {message}"
+            commit = f"{DAILY_BASE_DIR}: Add {message}"
             self.repo.create_file(file_path, commit, content.strip(), branch="main")
             print(f"Diary {message} created.")
 

@@ -31,14 +31,14 @@ class NoteRegistry:
             file_contents = self.repo.get_contents(file_path, ref="main")
             existing_content = file_contents.decoded_content.decode()
             new_content = existing_content + "\n\n---\n\n" + content.strip()
-            commit = f"Update {message}"
+            commit = f"{NOTE_BASE_DIR}: Update {message}"
             print(f"[Debug] Updating existing file with commit: {commit}")
             self.repo.update_file(
                 file_path, commit, new_content, file_contents.sha, branch="main")
             print(f"File {message} updated.")
         except Exception as e:
             print(f"[Debug] File doesn't exist, creating new file: {e}")
-            commit = f"Add {message}"
+            commit = f"{NOTE_BASE_DIR}: Add {message}"
             formatted_content = content.strip()
             print(f"[Debug] Creating file with content: '{formatted_content}'")
             self.repo.create_file(file_path, commit, formatted_content, branch="main")
@@ -93,7 +93,7 @@ class NoteRegistry:
         # 画像保存先: seeds/2026/01/assets/2026-01-03-143052.jpg
         assets_path = f"{NOTE_BASE_DIR}/{now.year}/{now.month:02d}/assets/{image_filename}"
 
-        commit_message = f"Add image {timestamp}"
+        commit_message = f"{NOTE_BASE_DIR}: Add image {timestamp}"
 
         try:
             self.repo.create_file(
