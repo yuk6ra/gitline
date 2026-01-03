@@ -3,7 +3,8 @@ import re
 import json
 from linebot.v3.messaging.models.push_message_request import PushMessageRequest
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, MessagingApiBlob, TextMessage
-from src.note import NoteRegistry, DailyRegistry
+from src.note import NoteRegistry
+from src.daily import DailyRegistry
 
 configuration = Configuration(access_token=os.environ["LINEBOT_CHANNEL_ACCESS_TOKEN"])
 LINEBOT_USER_ID = os.environ["LINEBOT_USER_ID"]
@@ -75,7 +76,7 @@ def save_note(event, context):
             if date_match:
                 print(f"[Debug] Saving daily: {content}")
                 try:
-                    daily.write(content=content)
+                    daily.save(content=content)
                     print(f"[Debug] Daily saved successfully")
                 except Exception as e:
                     print(f"[Error] Failed to save daily: {e}")
@@ -88,7 +89,7 @@ def save_note(event, context):
                 # メモを保存
                 print(f"[Debug] Saving memo: {content}")
                 try:
-                    note.write(content=content)
+                    note.append(content=content)
                     print(f"[Debug] Memo saved successfully")
                 except Exception as e:
                     print(f"[Error] Failed to save memo: {e}")
@@ -110,7 +111,7 @@ def save_note(event, context):
                     image_content = blob_api.get_message_content(message_id)
 
                 # GitHubに保存
-                note.write_image(image_content, extension="jpg")
+                note.append_image(image_content, extension="jpg")
                 print(f"[Debug] Image saved successfully")
             except Exception as e:
                 print(f"[Error] Failed to save image: {e}")
