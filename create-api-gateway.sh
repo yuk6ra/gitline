@@ -1,14 +1,23 @@
 #!/bin/bash
+set -e  # エラー時に停止
+
+# 引数チェック
+if [ -z "$1" ]; then
+  echo "Usage: $0 <function-name>"
+  echo "Example: $0 oracle-ai"
+  exit 1
+fi
 
 # 環境変数
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION="ap-northeast-1"
-FUNCTION_NAME="oracle-ai"
-API_NAME="oracle-ai-webhook"
+FUNCTION_NAME="$1"
+API_NAME="${FUNCTION_NAME}-api"
 
 echo "Account ID: $ACCOUNT_ID"
 echo "Region: $REGION"
-echo "Function: $FUNCTION_NAME"
+echo "Function Name: $FUNCTION_NAME"
+echo "API Name: $API_NAME"
 
 # 1. REST API作成
 echo "Creating REST API..."

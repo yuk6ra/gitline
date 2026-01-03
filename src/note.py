@@ -8,7 +8,7 @@ dotenv.load_dotenv()
 GITHUB_ACCESS_TOKEN = os.environ["GITHUB_ACCESS_TOKEN"]
 GITHUB_USERNAME = os.environ["GITHUB_USERNAME"]
 GITHUB_REPOSITORY = os.environ["GITHUB_REPOSITORY"]
-MEMO_BASE_DIR = os.environ.get("MEMO_BASE_DIR", "seeds")
+NOTE_BASE_DIR = os.environ.get("NOTE_BASE_DIR", "seeds")
 
 class NoteRegistry:
     def __init__(self):
@@ -23,7 +23,7 @@ class NoteRegistry:
         if now.hour < 4:
             now = now - datetime.timedelta(days=1)
         message = f"{now.year}.{now.month}.{now.day}"
-        file_path = f"{MEMO_BASE_DIR}/{now.year}/{now.month:02d}/{now.month:02d}{now.day:02d}.md"
+        file_path = f"{NOTE_BASE_DIR}/{now.year}/{now.month:02d}/{now.month:02d}{now.day:02d}.md"
         print(f"[Debug] Target file path: {file_path}")
 
         try:
@@ -59,7 +59,7 @@ class NoteRegistry:
         random_date = start_date + datetime.timedelta(days=random_days)
 
         year, month, day = random_date.year, random_date.month, random_date.day
-        file_path = f"{MEMO_BASE_DIR}/{year}/{month:02d}/{month:02d}{day:02d}.md"
+        file_path = f"{NOTE_BASE_DIR}/{year}/{month:02d}/{month:02d}{day:02d}.md"
 
         try:
             file_contents = self.repo.get_contents(file_path)
@@ -69,7 +69,7 @@ class NoteRegistry:
             return "No content found.", year, month, day
 
     def read_file(self, year, month, day) -> str:
-        file_path = f"{MEMO_BASE_DIR}/{year}/{month:02d}/{month:02d}{day:02d}.md"
+        file_path = f"{NOTE_BASE_DIR}/{year}/{month:02d}/{month:02d}{day:02d}.md"
 
         try:
             file_contents = self.repo.get_contents(file_path)
@@ -91,7 +91,7 @@ class NoteRegistry:
         image_filename = f"{timestamp}.{extension}"
 
         # 画像保存先: seeds/2026/01/assets/2026-01-03-143052.jpg
-        assets_path = f"{MEMO_BASE_DIR}/{now.year}/{now.month:02d}/assets/{image_filename}"
+        assets_path = f"{NOTE_BASE_DIR}/{now.year}/{now.month:02d}/assets/{image_filename}"
 
         commit_message = f"Add image {timestamp}"
 

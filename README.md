@@ -1,41 +1,36 @@
-# Oracle AI
+# GitHub LINE Memo
 
-A LINE Bot that automatically saves memos sent via LINE to a GitHub repository and provides AI-powered deep-dive questioning functionality.
+A LINE Bot that automatically saves memos and images sent via LINE to a GitHub repository.
 
 ## Features
 
-- **Memo Saving**: Automatically saves text sent via LINE to a GitHub repository
-- **AI Deep-dive**: Generates questions about memos using OpenAI GPT
-- **Interactive Sessions**: Deep exploration of memos through question-and-answer interactions
-- **Objective Analysis**: AI-powered objective analysis and insights on memos
-- **Session Management**: Interactive sessions with timeout functionality
+- **Text Memo**: Automatically saves text messages to GitHub (append mode)
+- **Daily Journal**: Messages starting with date pattern (YYYY/MM/DD or YYYY-MM-DD) are saved as daily entries (overwrite mode)
+- **Image Saving**: Automatically saves images to GitHub with markdown links
 
 ## Architecture
 
 ```
 LINE Webhook → AWS Lambda → GitHub API
-                    ↓
-                OpenAI API
 ```
 
 ## Setup
 
-### 1. Required Environment Variables
+### 1. Environment Variables
 
-Set the following environment variables:
+See [.env.example](.env.example) for required variables:
 
 ```bash
-# LINE Bot Configuration
-LINEBOT_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
-LINEBOT_USER_ID=your_line_user_id
-
-# GitHub Configuration
+# Required
 GITHUB_ACCESS_TOKEN=your_github_personal_access_token
 GITHUB_USERNAME=your_github_username
 GITHUB_REPOSITORY=your_repository_name
+LINEBOT_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
+LINEBOT_USER_ID=your_line_user_id
 
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key
+# Optional (with defaults)
+NOTE_BASE_DIR=seeds    # Directory for memos
+DAILY_BASE_DIR=daily   # Directory for daily journals
 ```
 
 ### 2. Create AWS IAM User (for GitHub Actions)
@@ -76,73 +71,83 @@ Set the following secrets in your GitHub repository:
 
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
-- `LINEBOT_CHANNEL_ACCESS_TOKEN`
-- `LINEBOT_USER_ID`
-- `GITHUB_ACCESS_TOKEN`
-- `GITHUB_USERNAME`
-- `GITHUB_REPOSITORY`
-- `OPENAI_API_KEY`
+- `AWS_REGION`
+- `ECR_REPOSITORY`
+- `LAMBDA_FUNCTION_NAME`
 
 ## Usage
 
-### Basic Memo Saving
+### Text Memo
 
-1. Send a message to the LINE Bot
-2. When asked "Do you want to deep-dive?"
-3. Input anything other than "yes" to save as a regular memo
-
-### AI Deep-dive Session
-
-1. Input "yes" after sending a memo
-2. Select from AI-generated questions (respond with numbers 1-5)
-3. Answer the questions
-4. Can continue with "Do you want to continue deep-diving?"
-5. Up to 10 question-and-answer rounds possible
-
-### Special Commands
-
-- **Reconsider**: Regenerate questions from different angles
-- **End**: Force end the session
-- **AI Analysis**: Get objective analysis from AI
-
-## Development
-
-### Local Testing
-
-```bash
-python app.py
+Send any text message to the LINE Bot. It will be saved to:
+```
+{NOTE_BASE_DIR}/{year}/{month}/{month}{day}.md
 ```
 
-Runs in local test mode when environment variables are not set.
+Multiple messages on the same day are appended with `---` separator.
 
-### File Structure
+### Daily Journal
+
+Send a message starting with a date pattern:
+```
+2026/01/03 Today's journal entry...
+2026-01-03 Another format works too...
+```
+
+It will be saved to:
+```
+{DAILY_BASE_DIR}/{year}/{month}/{month}{day}.md
+```
+
+Daily entries overwrite previous content for the same date.
+
+### Image
+
+Send an image to the LINE Bot. It will be:
+1. Saved to `{NOTE_BASE_DIR}/{year}/{month}/assets/{timestamp}.jpg`
+2. A markdown link added to the day's memo
+
+## File Structure
 
 ```
-├── app.py              # Main processing (Lambda function)
+├── app.py              # Lambda handler (LINE Bot)
 ├── src/
-│   └── note.py         # GitHub API & AI processing
+│   ├── note.py         # NoteRegistry class
+│   └── daily.py        # DailyRegistry class
 ├── aws/
-│   ├── iam-policy.json # IAM policy
+│   ├── iam-policy.json
 │   └── lambda-trust-policy.json
-├── requirements.txt    # Python dependencies
-├── Dockerfile         # Container configuration
-└── create-*.sh        # Deployment scripts
+├── .github/
+│   └── workflows/
+│       └── deploy.yml  # Auto-deploy on push
+├── requirements.txt
+├── Dockerfile
+└── create-*.sh         # Deployment scripts
 ```
 
 ## Deployment
 
-Automatically deployed to AWS Lambda via GitHub Actions when pushed.
+Automatically deployed to AWS Lambda via GitHub Actions when pushed to `main` branch.
 
-### Manual Deployment (using ECR)
+### Manual Deployment
 
 ```bash
-# Create ECR repository
-aws ecr create-repository --repository-name line-git-note-save-note
+# Login to ECR
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+REGION="ap-northeast-1"
+FUNCTION_NAME="oracle-ai"
 
-# Build and push Docker image
-docker build -t line-git-note-save-note .
-docker tag line-git-note-save-note:latest <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/line-git-note-save-note:latest
-docker push <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/line-git-note-save-note:latest
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
+# Build and push
+docker build -t $FUNCTION_NAME .
+docker tag $FUNCTION_NAME:latest $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$FUNCTION_NAME:latest
+docker push $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$FUNCTION_NAME:latest
+
+# Update Lambda
+aws lambda update-function-code \
+  --function-name $FUNCTION_NAME \
+  --image-uri $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$FUNCTION_NAME:latest
 ```
 
 ## Troubleshooting
@@ -155,8 +160,3 @@ Ensure the Lambda function returns proper HTTP response (statusCode: 200).
 
 - Check GitHub Personal Access Token permissions
 - Verify repository name and username are correct
-
-### AI Features Not Working
-
-- Verify OpenAI API Key is valid
-- Check if API usage limits have been reached
