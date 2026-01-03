@@ -2,6 +2,12 @@
 
 A LINE Bot that automatically saves notes and images sent via LINE to a GitHub repository.
 
+[LINE](https://line.me/) is a popular messaging app in Japan, similar to WhatsApp or WeChat.
+
+To create your own Ghost, you must first nurture a cyberbrain — a system for recording your mind. Since 2023.
+
+![DENNO](docs/dennou.jpg)
+*Ghost in the Shell*
 ## Features
 
 - **Text Memo**: Automatically saves text messages to GitHub (append mode)
