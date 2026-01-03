@@ -28,6 +28,8 @@ class DailyRegistry:
             year = int(match.group(1))
             month = int(match.group(2))
             day = int(match.group(3))
+            # 日付行を除去
+            content = content[match.end():].lstrip('\n')
         else:
             # 日付がない場合は現在日時を使用
             now = datetime.datetime.now(
