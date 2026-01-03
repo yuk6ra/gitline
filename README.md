@@ -37,24 +37,13 @@ DAILY_BASE_DIR=daily   # Directory for daily journals
 
 Create an IAM user with the following AWS managed policies:
 - `AmazonEC2ContainerRegistryPowerUser`
-- `AWSLambda_FullAccess` (or a custom policy with `lambda:UpdateFunctionCode`)
+- `AWSLambda_FullAccess`
 
 ```bash
-# Create IAM user
-aws iam create-user --user-name github-actions-lambda-deploy
-
-# Attach managed policies
-aws iam attach-user-policy \
-  --user-name github-actions-lambda-deploy \
-  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
-
-aws iam attach-user-policy \
-  --user-name github-actions-lambda-deploy \
-  --policy-arn arn:aws:iam::aws:policy/AWSLambda_FullAccess
-
-# Create access key
-aws iam create-access-key --user-name github-actions-lambda-deploy
+./create-iam-user.sh
 ```
+
+Save the output credentials for GitHub Secrets configuration.
 
 ### 3. AWS Lambda Deployment
 
@@ -155,7 +144,8 @@ Send an image to the LINE Bot. It will be:
 │       └── deploy.yml  # Auto-deploy on push
 ├── requirements.txt
 ├── Dockerfile
-└── create-*.sh         # Deployment scripts
+├── create-iam-user.sh  # IAM user setup for GitHub Actions
+└── create-lambda.sh    # Lambda function setup
 ```
 
 ### GitHub Repository Structure (Output)
@@ -202,7 +192,7 @@ Automatically deployed to AWS Lambda via GitHub Actions when pushed to `main` br
 # Login to ECR
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 REGION="ap-northeast-1"
-FUNCTION_NAME="oracle-ai"
+FUNCTION_NAME="gitline"
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
